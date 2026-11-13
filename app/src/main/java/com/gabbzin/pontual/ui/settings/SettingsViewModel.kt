@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gabbzin.pontual.AppContainer
 import com.gabbzin.pontual.backup.InvalidBackupException
+import com.gabbzin.pontual.calc.settingsValidationError
 import com.gabbzin.pontual.model.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,14 +26,14 @@ data class SettingsForm(
     fun validate(): Result<Settings> {
         val daily = dailyMinutesText.toIntOrNull()
         val tol = toleranceText.toIntOrNull()
+        if (daily == null || daily !in 1..1440) return Result.failure(IllegalArgumentException("Jornada inválida."))
+        if (tol == null || tol !in 0..120) return Result.failure(IllegalArgumentException("Tolerância inválida."))
+        val candidate = settings.copy(dailyMinutes = daily, toleranceMinutes = tol)
+        settingsValidationError(candidate)?.let { return Result.failure(IllegalArgumentException(it)) }
         return when {
-            daily == null || daily !in 1..1440 -> Result.failure(IllegalArgumentException("Jornada inválida."))
-            tol == null || tol !in 0..120 -> Result.failure(IllegalArgumentException("Tolerância inválida."))
-            !settings.windowStart.isBefore(settings.windowEnd) ->
-                Result.failure(IllegalArgumentException("O início do horário precisa ser antes do fim."))
             settings.internshipStart == null -> Result.failure(IllegalArgumentException("Informe o início do estágio."))
             settings.balanceStart == null -> Result.failure(IllegalArgumentException("Informe o início do saldo."))
-            else -> Result.success(settings.copy(dailyMinutes = daily, toleranceMinutes = tol))
+            else -> Result.success(candidate)
         }
     }
 }

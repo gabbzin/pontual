@@ -127,11 +127,13 @@ class BackupServiceTest {
         version: Int = 1,
         sessions: List<String> = emptyList(),
         daysOff: List<String> = emptyList(),
+        windowStart: String = "08:00",
+        toleranceMinutes: Int = 5,
     ) =
         """
         {"version":$version,"exportedAt":"2026-11-13T12:00:00Z",
-         "settings":{"dailyMinutes":360,"workdays":[1,2,3,4,5],"windowStart":"08:00",
-           "windowEnd":"18:00","toleranceMinutes":5,"internshipStart":null,
+         "settings":{"dailyMinutes":360,"workdays":[1,2,3,4,5],"windowStart":"$windowStart",
+           "windowEnd":"18:00","toleranceMinutes":$toleranceMinutes,"internshipStart":null,
            "balanceStart":null,"zoneId":"America/Sao_Paulo"},
          "sessions":[${sessions.joinToString(",")}],
          "daysOff":[${daysOff.joinToString(",")}]}
@@ -178,6 +180,12 @@ class BackupServiceTest {
                 )
             )
         )
+    }
+
+    @Test
+    fun import_settingsWindowCrossesMidnight_rejected() = runBlocking {
+        seed()
+        assertImportRejectedKeepsData(backupJson(windowStart = "00:30", toleranceMinutes = 60))
     }
 
     @Test
