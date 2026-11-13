@@ -50,7 +50,7 @@ Versão única: tudo acima é entregue junto. Fica de fora:
 
 - **Stack:**
   - Kotlin, Jetpack Compose (Material 3), ViewModel + `StateFlow`.
-  - Room pro banco e DataStore não é necessário: a configuração fica numa tabela.
+  - Room pro banco. A configuração fica numa tabela, então não precisa de DataStore.
   - kotlinx.serialization pro backup.
   - `java.time` pras datas.
   - DI manual: um `AppContainer` na `Application`.
