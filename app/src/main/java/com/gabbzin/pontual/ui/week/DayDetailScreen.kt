@@ -44,6 +44,7 @@ import com.gabbzin.pontual.model.Source
 import com.gabbzin.pontual.model.WorkSession
 import com.gabbzin.pontual.ui.formatLongDay
 import com.gabbzin.pontual.ui.formatTime
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -68,27 +69,38 @@ class DayDetailViewModel(private val container: AppContainer, private val date: 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages: SharedFlow<String> = _messages
 
-    /** [onDone] recebe se o lançamento foi salvo. */
-    fun addManual(startedAt: Instant, endedAt: Instant, note: String, onDone: (Boolean) -> Unit) {
+    /** [onResult] recebe a mensagem de erro, ou null se o lançamento foi salvo. */
+    fun addManual(startedAt: Instant, endedAt: Instant, note: String, onResult: (String?) -> Unit) {
         viewModelScope.launch {
-            try {
+            val error = try {
                 repo.addManual(startedAt, endedAt, note)
-                onDone(true)
-            } catch (e: PunchException) {
-                onDone(false)
-                _messages.tryEmit(e.error.message)
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failureMessage(e)
             }
+            onResult(error)
         }
     }
 
     fun delete(id: String) {
         viewModelScope.launch {
-            try {
+            val error = try {
                 repo.deleteManual(id)
-            } catch (e: PunchException) {
-                _messages.tryEmit(e.error.message)
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failureMessage(e)
             }
+            error?.let { _messages.tryEmit(it) }
         }
+    }
+
+    private fun failureMessage(e: Exception): String = when (e) {
+        is PunchException -> e.error.message
+        else -> "Erro inesperado: ${e.message}"
     }
 }
 
@@ -138,8 +150,11 @@ fun DayDetailScreen(container: AppContainer, date: LocalDate, onBack: () -> Unit
                 date = date,
                 settings = st.settings,
                 onDismiss = { manualOpen = false },
-                onSave = { startedAt, endedAt, note ->
-                    vm.addManual(startedAt, endedAt, note) { saved -> if (saved) manualOpen = false }
+                onSave = { startedAt, endedAt, note, onResult ->
+                    vm.addManual(startedAt, endedAt, note) { error ->
+                        if (error == null) manualOpen = false
+                        onResult(error)
+                    }
                 },
             )
         }
