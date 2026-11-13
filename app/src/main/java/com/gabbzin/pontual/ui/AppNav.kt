@@ -1,7 +1,5 @@
 package com.gabbzin.pontual.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
@@ -16,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gabbzin.pontual.AppContainer
+import com.gabbzin.pontual.ui.bank.BankScreen
 import com.gabbzin.pontual.ui.settings.SettingsScreen
 import com.gabbzin.pontual.ui.today.TodayScreen
 
@@ -97,7 +95,7 @@ fun AppNav(container: AppContainer) {
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(Routes.BANK) { Placeholder("Banco") }
+            composable(Routes.BANK) { BankScreen(container) }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     container = container,
@@ -110,9 +108,4 @@ fun AppNav(container: AppContainer) {
             }
         }
     }
-}
-
-@Composable
-private fun Placeholder(name: String) {
-    Box(Modifier.fillMaxSize()) { Text(name, Modifier.padding(24.dp)) }
 }
