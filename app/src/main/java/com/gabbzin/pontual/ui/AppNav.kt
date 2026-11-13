@@ -83,8 +83,19 @@ fun AppNav(container: AppContainer) {
             modifier = Modifier.padding(padding),
         ) {
             composable(Routes.TODAY) { Placeholder("Hoje") }
-            composable(Routes.WEEK) { Placeholder("Semana") }
-            composable(Routes.DAY) { Placeholder("Dia") }
+            composable(Routes.WEEK) {
+                com.gabbzin.pontual.ui.week.WeekScreen(
+                    container = container,
+                    onOpenDay = { nav.navigate(Routes.day(it)) },
+                )
+            }
+            composable(Routes.DAY) {
+                com.gabbzin.pontual.ui.week.DayDetailScreen(
+                    container = container,
+                    date = java.time.LocalDate.parse(requireNotNull(it.arguments?.getString("date"))),
+                    onBack = { nav.popBackStack() },
+                )
+            }
             composable(Routes.BANK) { Placeholder("Banco") }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
