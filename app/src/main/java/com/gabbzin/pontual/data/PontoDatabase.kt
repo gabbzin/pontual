@@ -16,6 +16,10 @@ import com.gabbzin.pontual.model.WorkSession
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
+/**
+ * Toda Migration deve começar com `DROP INDEX IF EXISTS one_open_session`; o índice é recriado no onOpen.
+ * O índice parcial não está no schema do Room (exportSchema), então o Room não o recria sozinho.
+ */
 abstract class PontoDatabase : RoomDatabase() {
 
     abstract fun sessionDao(): SessionDao
@@ -32,6 +36,11 @@ abstract class PontoDatabase : RoomDatabase() {
 
         private val openSessionCallback = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
+                db.execSQL(ONE_OPEN_SESSION_SQL)
+            }
+
+            // Recria o índice em bancos já existentes (e após uma Migration que o tenha removido).
+            override fun onOpen(db: SupportSQLiteDatabase) {
                 db.execSQL(ONE_OPEN_SESSION_SQL)
             }
         }
