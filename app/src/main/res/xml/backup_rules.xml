@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="database" path="pontual.db" />
+    <include domain="database" path="pontual.db-wal" />
+    <include domain="database" path="pontual.db-shm" />
+</full-backup-content>
