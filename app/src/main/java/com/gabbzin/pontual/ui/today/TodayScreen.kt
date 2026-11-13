@@ -111,7 +111,8 @@ private fun PunchButtonLarge(state: TodayState, busy: Boolean, onClick: () -> Un
     val (label, colors) = when (state.button) {
         PunchButton.ENTER -> "ENTRAR" to ButtonDefaults.buttonColors(containerColor = GREEN, contentColor = Color.White)
         PunchButton.EXIT -> "SAIR" to ButtonDefaults.buttonColors(containerColor = RED, contentColor = Color.White)
-        PunchButton.DISABLED -> state.windowLabel to ButtonDefaults.buttonColors()
+        PunchButton.DISABLED ->
+            (if (state.forgotten != null) "Sessão esquecida" else state.windowLabel) to ButtonDefaults.buttonColors()
     }
     Button(
         onClick = onClick,
