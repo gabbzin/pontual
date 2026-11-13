@@ -140,6 +140,8 @@ class PontoRepository(private val db: PontoDatabase, private val clock: Clock) {
             to.plusDays(1).atStartOfDay(zone).toInstant(),
         )
 
+    fun observeOpenSession(): Flow<WorkSession?> = db.sessionDao().observeOpen()
+
     fun observeDaysOff(): Flow<List<DayOff>> = db.dayOffDao().observeAll()
 
     suspend fun addDayOff(d: DayOff) = db.dayOffDao().upsert(d)

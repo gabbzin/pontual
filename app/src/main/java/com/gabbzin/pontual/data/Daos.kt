@@ -27,6 +27,9 @@ interface SessionDao {
     @Query("SELECT * FROM work_session WHERE endedAt IS NULL LIMIT 1")
     suspend fun findOpen(): WorkSession?
 
+    @Query("SELECT * FROM work_session WHERE endedAt IS NULL LIMIT 1")
+    fun observeOpen(): Flow<WorkSession?>
+
     @Query("SELECT * FROM work_session WHERE id = :id")
     suspend fun findById(id: String): WorkSession?
 
