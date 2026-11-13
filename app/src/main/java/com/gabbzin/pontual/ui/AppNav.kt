@@ -1,5 +1,6 @@
 package com.gabbzin.pontual.ui
 
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
@@ -87,7 +88,7 @@ fun AppNav(container: AppContainer, navController: NavHostController = rememberN
         NavHost(
             navController = nav,
             startDestination = if (startConfigured) Routes.TODAY else Routes.SETTINGS,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         ) {
             composable(Routes.TODAY) { TodayScreen(container) }
             composable(Routes.WEEK) {
