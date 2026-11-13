@@ -120,15 +120,77 @@ class BackupServiceTest {
             """"startSource":"APP","endSource":${if (end == null) "null" else "\"APP\""},""" +
             """"note":null,"createdAt":"$start"}"""
 
-    private fun backupJson(version: Int = 1, sessions: List<String> = emptyList()) =
+    private fun dayOffJson(date: String) =
+        """{"date":"$date","kind":"HOLIDAY","note":null}"""
+
+    private fun backupJson(
+        version: Int = 1,
+        sessions: List<String> = emptyList(),
+        daysOff: List<String> = emptyList(),
+    ) =
         """
         {"version":$version,"exportedAt":"2026-11-13T12:00:00Z",
          "settings":{"dailyMinutes":360,"workdays":[1,2,3,4,5],"windowStart":"08:00",
            "windowEnd":"18:00","toleranceMinutes":5,"internshipStart":null,
            "balanceStart":null,"zoneId":"America/Sao_Paulo"},
          "sessions":[${sessions.joinToString(",")}],
-         "daysOff":[]}
+         "daysOff":[${daysOff.joinToString(",")}]}
         """.trimIndent()
+
+    private suspend fun assertImportRejectedKeepsData(json: String) {
+        assertThrows(InvalidBackupException::class.java) {
+            runBlocking { service.import(ByteArrayInputStream(json.toByteArray())) }
+        }
+        assertDataEquals(listOf(closed, manual, open), listOf(holiday, recess), settings)
+    }
+
+    @Test
+    fun import_duplicateSessionIds_rejected() = runBlocking {
+        seed()
+        assertImportRejectedKeepsData(
+            backupJson(
+                sessions = listOf(
+                    sessionJson("dup", "2026-11-10T08:00:00Z", "2026-11-10T09:00:00Z"),
+                    sessionJson("dup", "2026-11-10T10:00:00Z", "2026-11-10T11:00:00Z"),
+                )
+            )
+        )
+    }
+
+    @Test
+    fun import_duplicateDayOffDates_rejected() = runBlocking {
+        seed()
+        assertImportRejectedKeepsData(
+            backupJson(
+                daysOff = listOf(dayOffJson("2026-11-02"), dayOffJson("2026-11-02")),
+            )
+        )
+    }
+
+    @Test
+    fun import_twoOpenSessions_rejected() = runBlocking {
+        seed()
+        assertImportRejectedKeepsData(
+            backupJson(
+                sessions = listOf(
+                    sessionJson("a", "2026-11-10T08:00:00Z", null),
+                    sessionJson("b", "2026-11-11T08:00:00Z", null),
+                )
+            )
+        )
+    }
+
+    @Test
+    fun import_endBeforeStart_rejected() = runBlocking {
+        seed()
+        assertImportRejectedKeepsData(
+            backupJson(
+                sessions = listOf(
+                    sessionJson("a", "2026-11-10T12:00:00Z", "2026-11-10T08:00:00Z"),
+                )
+            )
+        )
+    }
 
     @Test
     fun exportThenImport_roundTripsEverything() = runBlocking {

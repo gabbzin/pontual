@@ -62,11 +62,13 @@ class BackupService(private val db: PontoDatabase, private val clock: Clock) {
                 )
             }
             val sessions = backup.sessions.map { it.toModel() }
+            val daysOff = backup.daysOff.map { it.toModel() }
             validateSessions(sessions)
+            validateDaysOff(daysOff)
             return Parsed(
                 settings = backup.settings.toModel(),
                 sessions = sessions,
-                daysOff = backup.daysOff.map { it.toModel() },
+                daysOff = daysOff,
             )
         } catch (e: InvalidBackupException) {
             throw e
@@ -75,7 +77,22 @@ class BackupService(private val db: PontoDatabase, private val clock: Clock) {
         }
     }
 
+    private fun validateDaysOff(daysOff: List<DayOff>) {
+        val duplicate = daysOff.groupBy { it.date }.entries.firstOrNull { it.value.size > 1 }
+        if (duplicate != null) {
+            throw InvalidBackupException(
+                "Arquivo de backup inválido: dia ${duplicate.key} aparece mais de uma vez"
+            )
+        }
+    }
+
     private fun validateSessions(sessions: List<WorkSession>) {
+        val duplicateId = sessions.groupBy { it.id }.entries.firstOrNull { it.value.size > 1 }
+        if (duplicateId != null) {
+            throw InvalidBackupException(
+                "Arquivo de backup inválido: sessão ${duplicateId.key} duplicada"
+            )
+        }
         sessions.forEach { s ->
             if (s.endedAt != null && !s.endedAt.isAfter(s.startedAt)) {
                 throw InvalidBackupException(
