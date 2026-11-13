@@ -94,18 +94,23 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** Fecha a sessão esquecida no horário [endedAt] do dia em que ela começou. */
-    fun closeForgotten(endedAt: LocalTime, note: String) {
+    /**
+     * Fecha a sessão esquecida no horário [endedAt] do dia em que ela começou.
+     * [onResult] recebe a mensagem de erro, ou null se a sessão foi fechada.
+     */
+    fun closeForgotten(endedAt: LocalTime, note: String, onResult: (String?) -> Unit) {
         val forgotten = state.value?.forgotten ?: return
         runGuarded(closeGate, _closeBusy) {
-            val s: Settings = repo.settings()
-            val day = localDateOf(forgotten.startedAt, s)
-            val instant = day.atTime(endedAt).atZone(s.zoneId).toInstant()
-            try {
+            val error = try {
+                val s: Settings = repo.settings()
+                val day = localDateOf(forgotten.startedAt, s)
+                val instant = day.atTime(endedAt).atZone(s.zoneId).toInstant()
                 repo.closeForgotten(forgotten.id, instant, note)
+                null
             } catch (e: PunchException) {
-                _messages.tryEmit(TodayMessage(e.error.message, null))
+                e.error.message
             }
+            onResult(error)
         }
     }
 
