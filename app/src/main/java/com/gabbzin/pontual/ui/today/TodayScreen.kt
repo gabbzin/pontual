@@ -60,6 +60,8 @@ fun TodayScreen(container: AppContainer) {
     val vm: TodayViewModel = viewModel(factory = viewModelFactory { initializer { TodayViewModel(container) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val settings by container.repository.observeSettings().collectAsStateWithLifecycle(initialValue = null)
+    val punchBusy by vm.punchBusy.collectAsStateWithLifecycle()
+    val closeBusy by vm.closeBusy.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(vm) {
@@ -77,11 +79,11 @@ fun TodayScreen(container: AppContainer) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            st.forgotten?.let { ForgottenSessionCard(it, s) { t, note -> vm.closeForgotten(t, note) } }
+            st.forgotten?.let { ForgottenSessionCard(it, s, closeBusy) { t, note -> vm.closeForgotten(t, note) } }
 
             Text(formatLongDay(st.date), style = MaterialTheme.typography.headlineSmall)
 
-            PunchButtonLarge(st, onClick = vm::punch)
+            PunchButtonLarge(st, busy = punchBusy, onClick = vm::punch)
 
             st.running?.let {
                 Text("Em andamento ${formatTimer(it)}", style = MaterialTheme.typography.titleMedium)
@@ -105,7 +107,7 @@ fun TodayScreen(container: AppContainer) {
 }
 
 @Composable
-private fun PunchButtonLarge(state: TodayState, onClick: () -> Unit) {
+private fun PunchButtonLarge(state: TodayState, busy: Boolean, onClick: () -> Unit) {
     val (label, colors) = when (state.button) {
         PunchButton.ENTER -> "ENTRAR" to ButtonDefaults.buttonColors(containerColor = GREEN, contentColor = Color.White)
         PunchButton.EXIT -> "SAIR" to ButtonDefaults.buttonColors(containerColor = RED, contentColor = Color.White)
@@ -113,7 +115,7 @@ private fun PunchButtonLarge(state: TodayState, onClick: () -> Unit) {
     }
     Button(
         onClick = onClick,
-        enabled = state.button != PunchButton.DISABLED,
+        enabled = state.button != PunchButton.DISABLED && !busy,
         colors = colors,
         modifier = Modifier.fillMaxWidth(0.8f).height(120.dp),
     ) {
@@ -134,7 +136,12 @@ private fun SessionRow(session: WorkSession, s: Settings) {
 }
 
 @Composable
-private fun ForgottenSessionCard(session: WorkSession, s: Settings, onClose: (LocalTime, String) -> Unit) {
+private fun ForgottenSessionCard(
+    session: WorkSession,
+    s: Settings,
+    busy: Boolean,
+    onClose: (LocalTime, String) -> Unit,
+) {
     var dialogOpen by remember { mutableStateOf(false) }
     val day = localDateOf(session.startedAt, s)
 
@@ -155,6 +162,7 @@ private fun ForgottenSessionCard(session: WorkSession, s: Settings, onClose: (Lo
         CloseForgottenDialog(
             day = day,
             defaultEnd = punchWindow(day, s).endInclusive.atZone(s.zoneId).toLocalTime(),
+            busy = busy,
             onDismiss = { dialogOpen = false },
             onConfirm = onClose,
         )
@@ -165,6 +173,7 @@ private fun ForgottenSessionCard(session: WorkSession, s: Settings, onClose: (Lo
 private fun CloseForgottenDialog(
     day: LocalDate,
     defaultEnd: LocalTime,
+    busy: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (LocalTime, String) -> Unit,
 ) {
@@ -187,7 +196,7 @@ private fun CloseForgottenDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(endTime, note.trim()) }, enabled = note.isNotBlank()) { Text("Salvar") }
+            TextButton(onClick = { onConfirm(endTime, note.trim()) }, enabled = note.isNotBlank() && !busy) { Text("Salvar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
