@@ -13,6 +13,7 @@ import com.gabbzin.pontual.model.WorkSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -71,6 +72,65 @@ class PontoRepository(private val db: PontoDatabase, private val clock: Clock) {
                 sessions.update(open!!.copy(endedAt = now, endSource = Source.APP))
                 PunchResult(true, null)
             }
+        }
+    }
+
+    suspend fun closeForgotten(id: String, endedAt: Instant, note: String): WorkSession =
+        db.withTransaction {
+            val now = clock.instant()
+            requireNote(note)
+            requireNotFuture(endedAt, now)
+            val session = db.sessionDao().findById(id)
+                ?.takeIf { it.endedAt == null }
+                ?: throw PunchException(PunchError.NotOpen)
+            requireValidSpan(session.startedAt, endedAt, id)
+            val closed = session.copy(endedAt = endedAt, endSource = Source.MANUAL, note = note)
+            db.sessionDao().update(closed)
+            closed
+        }
+
+    suspend fun addManual(startedAt: Instant, endedAt: Instant, note: String): WorkSession =
+        db.withTransaction {
+            val now = clock.instant()
+            requireNote(note)
+            requireNotFuture(endedAt, now)
+            requireValidSpan(startedAt, endedAt, null)
+            val added = WorkSession(
+                id = UUID.randomUUID().toString(),
+                startedAt = startedAt,
+                endedAt = endedAt,
+                startSource = Source.MANUAL,
+                endSource = Source.MANUAL,
+                note = note,
+                createdAt = now,
+            )
+            db.sessionDao().insert(added)
+            added
+        }
+
+    suspend fun deleteManual(id: String) = db.withTransaction {
+        val session = db.sessionDao().findById(id) ?: return@withTransaction
+        if (!session.isManualOnly) throw PunchException(PunchError.NotManual)
+        db.sessionDao().delete(id)
+    }
+
+    private fun requireNote(note: String) {
+        if (note.isBlank()) throw PunchException(PunchError.NoteRequired)
+    }
+
+    private fun requireNotFuture(endedAt: Instant, now: Instant) {
+        if (endedAt > now) throw PunchException(PunchError.InFuture)
+    }
+
+    private suspend fun requireValidSpan(startedAt: Instant, endedAt: Instant, excludeId: String?) {
+        val s = settings()
+        val sameDay = localDateOf(startedAt, s) == localDateOf(endedAt, s)
+        val inWindow = isWithinWindow(startedAt, s) && isWithinWindow(endedAt, s)
+        if (!endedAt.isAfter(startedAt) || !sameDay || !inWindow) {
+            throw PunchException(PunchError.InvalidRange)
+        }
+        if (db.sessionDao().findOverlapping(startedAt, endedAt, excludeId).isNotEmpty()) {
+            throw PunchException(PunchError.Overlap)
         }
     }
 
