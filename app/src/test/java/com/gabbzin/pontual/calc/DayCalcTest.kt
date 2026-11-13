@@ -76,7 +76,7 @@ class DayCalcTest {
     fun expected_beforeBalanceStart_isZero() {
         assertEquals(
             Duration.ZERO,
-            expectedFor(LocalDate.of(2026, 11, 1), emptySet(), friday, settings),
+            expectedFor(LocalDate.of(2026, 10, 30), emptySet(), friday, settings),
         )
     }
 

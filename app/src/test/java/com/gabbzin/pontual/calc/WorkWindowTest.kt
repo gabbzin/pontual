@@ -76,6 +76,12 @@ class WorkWindowTest {
     }
 
     @Test
+    fun effectiveEnd_openSessionStartedAfterWindow_isZeroLength() {
+        val open = session(start = at("2026-11-13T19:00:00"), end = null)
+        assertEquals(at("2026-11-13T19:00:00"), effectiveEnd(open, now = at("2026-11-13T20:00:00"), s = settings))
+    }
+
+    @Test
     fun effectiveEnd_closedSession_usesEndedAt() {
         val closed = session(start = at("2026-11-13T13:00:00"), end = at("2026-11-13T14:00:00"))
         assertEquals(at("2026-11-13T14:00:00"), effectiveEnd(closed, now = at("2026-11-13T20:00:00"), s = settings))

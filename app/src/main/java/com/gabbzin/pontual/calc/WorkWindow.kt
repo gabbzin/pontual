@@ -25,4 +25,7 @@ fun isForgotten(open: WorkSession, now: Instant, s: Settings): Boolean {
 }
 
 fun effectiveEnd(session: WorkSession, now: Instant, s: Settings): Instant =
-    session.endedAt ?: minOf(now, punchWindow(localDateOf(session.startedAt, s), s).endInclusive)
+    session.endedAt ?: maxOf(
+        session.startedAt,
+        minOf(now, punchWindow(localDateOf(session.startedAt, s), s).endInclusive),
+    )
