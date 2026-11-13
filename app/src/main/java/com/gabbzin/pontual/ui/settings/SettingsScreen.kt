@@ -58,7 +58,7 @@ import java.time.format.TextStyle
 private val DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
 @Composable
-fun SettingsScreen(container: AppContainer, onFirstSave: () -> Unit) {
+fun SettingsScreen(container: AppContainer) {
     val vm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer { SettingsViewModel(container) } })
     val form by vm.form.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -120,7 +120,7 @@ fun SettingsScreen(container: AppContainer, onFirstSave: () -> Unit) {
             }
 
             Button(
-                onClick = { vm.save { wasConfigured -> if (!wasConfigured) onFirstSave() } },
+                onClick = vm::save,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Salvar") }
 

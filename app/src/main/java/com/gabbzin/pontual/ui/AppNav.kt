@@ -12,16 +12,17 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavHostController
 import com.gabbzin.pontual.AppContainer
 import com.gabbzin.pontual.ui.bank.BankScreen
 import com.gabbzin.pontual.ui.settings.SettingsScreen
@@ -46,16 +47,23 @@ private val tabs = listOf(
 )
 
 @Composable
-fun AppNav(container: AppContainer) {
+fun AppNav(container: AppContainer, navController: NavHostController = rememberNavController()) {
     val settings by container.repository.observeSettings().collectAsStateWithLifecycle(initialValue = null)
     val loaded = settings ?: return
     val startConfigured = remember { loaded.isConfigured }
-    val nav = rememberNavController()
+    val nav = navController
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination?.route
 
+    // Primeira configuração (ou import de backup configurado): sai de Config para Hoje, sem voltar para Config.
+    LaunchedEffect(loaded.isConfigured) {
+        if (loaded.isConfigured && !startConfigured && current == Routes.SETTINGS) {
+            nav.navigate(Routes.TODAY) { popUpTo(Routes.SETTINGS) { inclusive = true } }
+        }
+    }
+
     fun goTo(route: String) = nav.navigate(route) {
-        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+        popUpTo(Routes.TODAY) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
@@ -97,14 +105,7 @@ fun AppNav(container: AppContainer) {
             }
             composable(Routes.BANK) { BankScreen(container) }
             composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    container = container,
-                    onFirstSave = {
-                        nav.navigate(Routes.TODAY) {
-                            popUpTo(Routes.SETTINGS) { inclusive = true }
-                        }
-                    },
-                )
+                SettingsScreen(container = container)
             }
         }
     }

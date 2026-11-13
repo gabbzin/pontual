@@ -52,18 +52,15 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         _form.value?.let { _form.value = transform(it) }
     }
 
-    /** Valida e salva; [onSaved] recebe se a configuração já estava completa antes. */
-    fun save(onSaved: (wasConfigured: Boolean) -> Unit) {
+    fun save() {
         val current = _form.value ?: return
         current.validate()
             .onFailure { _messages.tryEmit(it.message ?: "Configuração inválida.") }
             .onSuccess { s ->
                 viewModelScope.launch {
-                    val wasConfigured = container.repository.settings().isConfigured
                     container.repository.saveSettings(s)
                     _form.value = SettingsForm(s)
                     _messages.tryEmit("Configuração salva.")
-                    onSaved(wasConfigured)
                 }
             }
     }
