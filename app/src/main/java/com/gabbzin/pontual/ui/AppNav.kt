@@ -27,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gabbzin.pontual.AppContainer
 import com.gabbzin.pontual.ui.settings.SettingsScreen
+import com.gabbzin.pontual.ui.today.TodayScreen
 
 object Routes {
     const val TODAY = "today"
@@ -82,7 +83,7 @@ fun AppNav(container: AppContainer) {
             startDestination = if (startConfigured) Routes.TODAY else Routes.SETTINGS,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Routes.TODAY) { Placeholder("Hoje") }
+            composable(Routes.TODAY) { TodayScreen(container) }
             composable(Routes.WEEK) { Placeholder("Semana") }
             composable(Routes.DAY) { Placeholder("Dia") }
             composable(Routes.BANK) { Placeholder("Banco") }
