@@ -202,4 +202,14 @@ class ManualEntryTest {
 
         assertTrue(db.sessionDao().all().isEmpty())
     }
+
+    @Test
+    fun addManual_withForgottenOpenSession_throwsForgotten() {
+        forgottenSessionId()
+        setNow("2026-11-14", "17:00")
+
+        assertThrowsPunch(PunchError.ForgottenOpenSession) {
+            repo.addManual(spAt("2026-11-14", "10:00"), spAt("2026-11-14", "12:00"), "x")
+        }
+    }
 }

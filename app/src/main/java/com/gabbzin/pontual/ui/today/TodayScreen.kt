@@ -79,7 +79,7 @@ fun TodayScreen(container: AppContainer) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            st.forgotten?.let { ForgottenSessionCard(it, s, closeBusy) { t, note -> vm.closeForgotten(t, note) } }
+            st.forgotten?.let { ForgottenSessionCard(it, s, closeBusy) { t, note, onResult -> vm.closeForgotten(t, note, onResult) } }
 
             Text(formatLongDay(st.date), style = MaterialTheme.typography.headlineSmall)
 
@@ -111,7 +111,8 @@ private fun PunchButtonLarge(state: TodayState, busy: Boolean, onClick: () -> Un
     val (label, colors) = when (state.button) {
         PunchButton.ENTER -> "ENTRAR" to ButtonDefaults.buttonColors(containerColor = GREEN, contentColor = Color.White)
         PunchButton.EXIT -> "SAIR" to ButtonDefaults.buttonColors(containerColor = RED, contentColor = Color.White)
-        PunchButton.DISABLED -> state.windowLabel to ButtonDefaults.buttonColors()
+        PunchButton.DISABLED ->
+            (if (state.forgotten != null) "Sessão esquecida" else state.windowLabel) to ButtonDefaults.buttonColors()
     }
     Button(
         onClick = onClick,
@@ -140,7 +141,7 @@ private fun ForgottenSessionCard(
     session: WorkSession,
     s: Settings,
     busy: Boolean,
-    onClose: (LocalTime, String) -> Unit,
+    onClose: (LocalTime, String, (String?) -> Unit) -> Unit,
 ) {
     var dialogOpen by remember { mutableStateOf(false) }
     val day = localDateOf(session.startedAt, s)
@@ -164,7 +165,12 @@ private fun ForgottenSessionCard(
             defaultEnd = punchWindow(day, s).endInclusive.atZone(s.zoneId).toLocalTime(),
             busy = busy,
             onDismiss = { dialogOpen = false },
-            onConfirm = onClose,
+            onConfirm = { t, note, onResult ->
+                onClose(t, note) { error ->
+                    if (error == null) dialogOpen = false
+                    onResult(error)
+                }
+            },
         )
     }
 }
@@ -175,10 +181,11 @@ private fun CloseForgottenDialog(
     defaultEnd: LocalTime,
     busy: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (LocalTime, String) -> Unit,
+    onConfirm: (LocalTime, String, (String?) -> Unit) -> Unit,
 ) {
     var endTime by remember { mutableStateOf(defaultEnd) }
     var note by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -186,17 +193,29 @@ private fun CloseForgottenDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(formatLongDay(day), style = MaterialTheme.typography.bodyMedium)
-                TimeField("Saída", endTime) { endTime = it }
+                TimeField("Saída", endTime) {
+                    endTime = it
+                    error = null
+                }
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { note = it },
+                    onValueChange = {
+                        note = it
+                        error = null
+                    },
                     label = { Text("Observação") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(endTime, note.trim()) }, enabled = note.isNotBlank() && !busy) { Text("Salvar") }
+            TextButton(
+                onClick = { onConfirm(endTime, note.trim()) { error = it } },
+                enabled = note.isNotBlank() && !busy,
+            ) { Text("Salvar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )

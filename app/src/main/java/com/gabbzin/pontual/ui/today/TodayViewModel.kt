@@ -10,6 +10,7 @@ import com.gabbzin.pontual.model.Settings
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -88,24 +89,37 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
         runGuarded(punchGate, _punchBusy) {
             try {
                 repo.punch(action)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: PunchException) {
                 _messages.tryEmit(TodayMessage(e.error.message, action))
+            } catch (e: Exception) {
+                _messages.tryEmit(TodayMessage("Erro inesperado: ${e.message ?: "erro desconhecido"}", action))
             }
         }
     }
 
-    /** Fecha a sessão esquecida no horário [endedAt] do dia em que ela começou. */
-    fun closeForgotten(endedAt: LocalTime, note: String) {
+    /**
+     * Fecha a sessão esquecida no horário [endedAt] do dia em que ela começou.
+     * [onResult] recebe a mensagem de erro, ou null se a sessão foi fechada.
+     */
+    fun closeForgotten(endedAt: LocalTime, note: String, onResult: (String?) -> Unit) {
         val forgotten = state.value?.forgotten ?: return
         runGuarded(closeGate, _closeBusy) {
-            val s: Settings = repo.settings()
-            val day = localDateOf(forgotten.startedAt, s)
-            val instant = day.atTime(endedAt).atZone(s.zoneId).toInstant()
-            try {
+            val error = try {
+                val s: Settings = repo.settings()
+                val day = localDateOf(forgotten.startedAt, s)
+                val instant = day.atTime(endedAt).atZone(s.zoneId).toInstant()
                 repo.closeForgotten(forgotten.id, instant, note)
+                null
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: PunchException) {
-                _messages.tryEmit(TodayMessage(e.error.message, null))
+                e.error.message
+            } catch (e: Exception) {
+                "Erro inesperado: ${e.message ?: "erro desconhecido"}"
             }
+            onResult(error)
         }
     }
 

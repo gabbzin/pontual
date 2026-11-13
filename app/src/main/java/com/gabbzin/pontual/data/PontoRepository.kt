@@ -129,6 +129,11 @@ class PontoRepository(private val db: PontoDatabase, private val clock: Clock) {
         if (!endedAt.isAfter(startedAt) || !sameDay || !inWindow) {
             throw PunchException(PunchError.InvalidRange)
         }
+        // Sessão esquecida aberta bloqueia qualquer lançamento até ser fechada (exceto a que está sendo fechada).
+        val open = db.sessionDao().findOpen()
+        if (open != null && open.id != excludeId && isForgotten(open, clock.instant(), s)) {
+            throw PunchException(PunchError.ForgottenOpenSession)
+        }
         if (db.sessionDao().findOverlapping(startedAt, endedAt, excludeId).isNotEmpty()) {
             throw PunchException(PunchError.Overlap)
         }

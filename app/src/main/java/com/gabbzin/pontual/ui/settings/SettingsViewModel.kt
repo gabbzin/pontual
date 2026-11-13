@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gabbzin.pontual.AppContainer
 import com.gabbzin.pontual.backup.InvalidBackupException
+import com.gabbzin.pontual.calc.settingsValidationError
 import com.gabbzin.pontual.model.Settings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,14 +27,14 @@ data class SettingsForm(
     fun validate(): Result<Settings> {
         val daily = dailyMinutesText.toIntOrNull()
         val tol = toleranceText.toIntOrNull()
+        if (daily == null || daily !in 1..1440) return Result.failure(IllegalArgumentException("Jornada inválida."))
+        if (tol == null || tol !in 0..120) return Result.failure(IllegalArgumentException("Tolerância inválida."))
+        val candidate = settings.copy(dailyMinutes = daily, toleranceMinutes = tol)
+        settingsValidationError(candidate)?.let { return Result.failure(IllegalArgumentException(it)) }
         return when {
-            daily == null || daily !in 1..1440 -> Result.failure(IllegalArgumentException("Jornada inválida."))
-            tol == null || tol !in 0..120 -> Result.failure(IllegalArgumentException("Tolerância inválida."))
-            !settings.windowStart.isBefore(settings.windowEnd) ->
-                Result.failure(IllegalArgumentException("O início do horário precisa ser antes do fim."))
             settings.internshipStart == null -> Result.failure(IllegalArgumentException("Informe o início do estágio."))
             settings.balanceStart == null -> Result.failure(IllegalArgumentException("Informe o início do saldo."))
-            else -> Result.success(settings.copy(dailyMinutes = daily, toleranceMinutes = tol))
+            else -> Result.success(candidate)
         }
     }
 }
@@ -52,18 +54,21 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         _form.value?.let { _form.value = transform(it) }
     }
 
-    /** Valida e salva; [onSaved] recebe se a configuração já estava completa antes. */
-    fun save(onSaved: (wasConfigured: Boolean) -> Unit) {
+    fun save() {
         val current = _form.value ?: return
         current.validate()
             .onFailure { _messages.tryEmit(it.message ?: "Configuração inválida.") }
             .onSuccess { s ->
                 viewModelScope.launch {
-                    val wasConfigured = container.repository.settings().isConfigured
-                    container.repository.saveSettings(s)
-                    _form.value = SettingsForm(s)
-                    _messages.tryEmit("Configuração salva.")
-                    onSaved(wasConfigured)
+                    try {
+                        container.repository.saveSettings(s)
+                        _form.value = SettingsForm(s)
+                        _messages.tryEmit("Configuração salva.")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        _messages.tryEmit("Erro inesperado: ${e.message ?: "erro desconhecido"}")
+                    }
                 }
             }
     }
@@ -74,26 +79,33 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun export(uri: Uri, resolver: android.content.ContentResolver) = viewModelScope.launch {
-        runCatching {
+        try {
             withContext(Dispatchers.IO) {
                 resolver.openOutputStream(uri)?.use { container.backup.export(it) }
                     ?: error("Não foi possível abrir o arquivo.")
             }
-        }.onSuccess { _messages.tryEmit("Backup exportado.") }
-            .onFailure { _messages.tryEmit("Falha ao exportar: ${it.message}") }
+            _messages.tryEmit("Backup exportado.")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _messages.tryEmit("Falha ao exportar: ${e.message ?: "erro desconhecido"}")
+        }
     }
 
     fun import(uri: Uri, resolver: android.content.ContentResolver) = viewModelScope.launch {
-        runCatching {
+        try {
             withContext(Dispatchers.IO) {
                 resolver.openInputStream(uri)?.use { container.backup.import(it) }
                     ?: error("Não foi possível abrir o arquivo.")
             }
-        }.onSuccess {
             _form.value = SettingsForm(container.repository.settings())
             _messages.tryEmit("Backup importado.")
-        }.onFailure {
-            _messages.tryEmit(if (it is InvalidBackupException) it.message.orEmpty() else "Falha ao importar: ${it.message}")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: InvalidBackupException) {
+            _messages.tryEmit(e.message.orEmpty())
+        } catch (e: Exception) {
+            _messages.tryEmit("Falha ao importar: ${e.message ?: "erro desconhecido"}")
         }
     }
 }

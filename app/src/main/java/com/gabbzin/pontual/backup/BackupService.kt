@@ -1,6 +1,7 @@
 package com.gabbzin.pontual.backup
 
 import androidx.room.withTransaction
+import com.gabbzin.pontual.calc.settingsValidationError
 import com.gabbzin.pontual.data.PontoDatabase
 import com.gabbzin.pontual.model.DayOff
 import com.gabbzin.pontual.model.DayOffKind
@@ -61,19 +62,23 @@ class BackupService(private val db: PontoDatabase, private val clock: Clock) {
                     "Arquivo de backup inválido: versão não suportada ${backup.version}"
                 )
             }
+            val settings = backup.settings.toModel()
+            settingsValidationError(settings)?.let {
+                throw InvalidBackupException("Arquivo de backup inválido: $it")
+            }
             val sessions = backup.sessions.map { it.toModel() }
             val daysOff = backup.daysOff.map { it.toModel() }
             validateSessions(sessions)
             validateDaysOff(daysOff)
             return Parsed(
-                settings = backup.settings.toModel(),
+                settings = settings,
                 sessions = sessions,
                 daysOff = daysOff,
             )
         } catch (e: InvalidBackupException) {
             throw e
         } catch (e: Exception) {
-            throw InvalidBackupException("Arquivo de backup inválido: ${e.message}")
+            throw InvalidBackupException("Arquivo de backup inválido.")
         }
     }
 
