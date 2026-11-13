@@ -73,7 +73,7 @@ class BankViewModel(private val container: AppContainer) : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _messages.tryEmit("$failure: ${e.message}")
+                _messages.tryEmit("$failure: ${e.message ?: "erro desconhecido"}")
             }
         }
     }

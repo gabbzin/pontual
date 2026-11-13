@@ -78,7 +78,7 @@ class BackupService(private val db: PontoDatabase, private val clock: Clock) {
         } catch (e: InvalidBackupException) {
             throw e
         } catch (e: Exception) {
-            throw InvalidBackupException("Arquivo de backup inválido: ${e.message}")
+            throw InvalidBackupException("Arquivo de backup inválido.")
         }
     }
 

@@ -100,7 +100,7 @@ class DayDetailViewModel(private val container: AppContainer, private val date: 
 
     private fun failureMessage(e: Exception): String = when (e) {
         is PunchException -> e.error.message
-        else -> "Erro inesperado: ${e.message}"
+        else -> "Erro inesperado: ${e.message ?: "erro desconhecido"}"
     }
 }
 

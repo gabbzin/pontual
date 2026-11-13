@@ -78,7 +78,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                     ?: error("Não foi possível abrir o arquivo.")
             }
         }.onSuccess { _messages.tryEmit("Backup exportado.") }
-            .onFailure { _messages.tryEmit("Falha ao exportar: ${it.message}") }
+            .onFailure { _messages.tryEmit("Falha ao exportar: ${it.message ?: "erro desconhecido"}") }
     }
 
     fun import(uri: Uri, resolver: android.content.ContentResolver) = viewModelScope.launch {
@@ -91,7 +91,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             _form.value = SettingsForm(container.repository.settings())
             _messages.tryEmit("Backup importado.")
         }.onFailure {
-            _messages.tryEmit(if (it is InvalidBackupException) it.message.orEmpty() else "Falha ao importar: ${it.message}")
+            _messages.tryEmit(if (it is InvalidBackupException) it.message.orEmpty() else "Falha ao importar: ${it.message ?: "erro desconhecido"}")
         }
     }
 }
